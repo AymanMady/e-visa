@@ -1,54 +1,149 @@
+// schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "mongodb"
+  url      = env("DATABASE_URL") // ex: mongodb+srv://user:pass@cluster0.mongodb.net/mydb?retryWrites=true&w=majority
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  fullName  String
-  email     String   @unique
-  passwordHash String
-  role      String   @default("applicant")
-  createdAt DateTime @default(now())
-  applications Application[]
+  id           String           @id @map("_id") @default(auto()) @db.ObjectId
+  email        String           @unique
+  password     String
+  phone        String?
+  createdAt    DateTime         @default(now())
+  lastLogin    DateTime?
+  applications VisaApplication[]
 }
 
-model Application {
-  id        Int      @id @default(autoincrement())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  passportNumber String
-  nationality    String?
-  visaType       String?
-  status    String   @default("pending")
-  submittedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  documents   Document[]
-  payments    Payment[]
+model Agent {
+  id        String          @id @map("_id") @default(auto()) @db.ObjectId
+  firstName String
+  lastName  String
+  email     String?         @unique
+  role      String?
+  active    Boolean         @default(true)
+  histories StatusHistory[]
 }
+
+model VisaType {
+  id           String           @id @map("_id") @default(auto()) @db.ObjectId
+  name         String
+  durationDays Int
+  price        Float
+  description  String?
+  active       Boolean          @default(true)
+  applications VisaApplication[]
+}
+
+model VisaApplication {
+  id                 String           @id @map("_id") @default(auto()) @db.ObjectId
+  user               User?            @relation(fields: [userId], references: [id])
+  userId             String?          @db.ObjectId
+  visaType           VisaType?        @relation(fields: [visaTypeId], references: [id])
+  visaTypeId         String?          @db.ObjectId
+  applicationNumber  String           @unique
+  status             String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime?        @updatedAt
+  submittedAt        DateTime?
+  processedAt        DateTime?
+  approvedAt         DateTime?
+
+  generalInfo        GeneralInfo?
+  passportInfo       PassportInfo?
+  travelerInfo       TravelerInfo?
+  photo              Photo?
+  documents          Document[]
+  histories          StatusHistory[]
+  payments           Payment[]
+}
+model GeneralInfo {
+  id                  String         @id @map("_id") @default(auto()) @db.ObjectId
+  application         VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId       String?        @unique @db.ObjectId
+  email               String?
+  phone               String?
+  travelPurpose       String?
+  arrivalDate         DateTime?
+  numberOfEntries     Int?
+  addressInMauritania String?
+  purposeDescription  String?
+}
+
+model PassportInfo {
+  id            String         @id @map("_id") @default(auto()) @db.ObjectId
+  application   VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId String?        @unique @db.ObjectId
+  documentNumber String
+  documentType   String?
+  issueDate      DateTime?
+  expiryDate     DateTime?
+  placeOfIssue   String?
+}
+
+model TravelerInfo {
+  id            String         @id @map("_id") @default(auto()) @db.ObjectId
+  application   VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId String?        @unique @db.ObjectId
+  title         String?
+  gender        String?
+  firstName     String
+  lastName      String
+  birthDate     DateTime?
+  birthPlace    String?
+  nationality   String?
+  occupation    String?
+}
+
+model Photo {
+  id            String         @id @map("_id") @default(auto()) @db.ObjectId
+  application   VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId String?        @unique @db.ObjectId
+  fileName      String
+  filePath      String
+  sizeKb        Int?
+  mimeType      String?
+  uploadDate    DateTime       @default(now())
+  valid         Boolean        @default(false)
+}
+
 
 model Document {
-  id            Int      @id @default(autoincrement())
-  application   Application @relation(fields: [applicationId], references: [id])
-  applicationId Int
+  id            String         @id @map("_id") @default(auto()) @db.ObjectId
+  application   VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId String?        @db.ObjectId
+  documentType  String?
   fileName      String
-  fileUrl       String
-  docType       String?
-  uploadedAt    DateTime @default(now())
+  filePath      String
+  sizeKb        Int?
+  mimeType      String?
+  uploadDate    DateTime       @default(now())
+  valid         Boolean        @default(false)
+}
+
+model StatusHistory {
+  id            String         @id @map("_id") @default(auto()) @db.ObjectId
+  application   VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId String?        @db.ObjectId
+  previousStatus String?
+  newStatus      String
+  changeDate     DateTime      @default(now())
+  agent         Agent?         @relation(fields: [agentId], references: [id])
+  agentId        String?        @db.ObjectId
+  comment        String?
 }
 
 model Payment {
-  id            Int      @id @default(autoincrement())
-  application   Application @relation(fields: [applicationId], references: [id])
-  applicationId Int
-  amount        Float
-  status        String   @default("pending")
-  transactionId String?
-  paidAt        DateTime?
+  id                   String         @id @map("_id") @default(auto()) @db.ObjectId
+  application          VisaApplication? @relation(fields: [applicationId], references: [id])
+  applicationId        String?        @db.ObjectId
+  amount               Float
+  currency             String
+  paymentMethod        String
+  paymentStatus        String
+  transactionReference String?
+  paymentDate          DateTime?      @default(now())
 }
-
-
