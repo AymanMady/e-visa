@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  fullName  String
+  email     String   @unique
+  passwordHash String
+  role      String   @default("applicant")
+  createdAt DateTime @default(now())
+  applications Application[]
+}
+
+model Application {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  passportNumber String
+  nationality    String?
+  visaType       String?
+  status    String   @default("pending")
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  documents   Document[]
+  payments    Payment[]
+}
+
+model Document {
+  id            Int      @id @default(autoincrement())
+  application   Application @relation(fields: [applicationId], references: [id])
+  applicationId Int
+  fileName      String
+  fileUrl       String
+  docType       String?
+  uploadedAt    DateTime @default(now())
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  application   Application @relation(fields: [applicationId], references: [id])
+  applicationId Int
+  amount        Float
+  status        String   @default("pending")
+  transactionId String?
+  paidAt        DateTime?
+}
+
+
