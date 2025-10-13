@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/router";
 
 const Signup = () => {
   const [data, setData] = useState({
@@ -11,6 +12,21 @@ const Signup = () => {
     email: "",
     password: "",
   });
+
+const router = useRouter();
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  router.push("/auth/signin");
+};
 
   return (
     <>
@@ -123,51 +139,39 @@ const Signup = () => {
               <span className="dark:bg-stroke-dark hidden h-[1px] w-full max-w-[200px] bg-stroke dark:bg-strokedark sm:block"></span>
             </div>
 
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="mb-7.5 flex flex-col gap-7.5 lg:mb-12.5 lg:flex-row lg:justify-between lg:gap-14">
                 <input
-                  name="firstName"
                   type="text"
-                  placeholder="First name"
-                  value={data.firstName}
-                  onChange={(e) =>
-                    setData({ ...data, [e.target.name]: e.target.value })
-                  }
+                  placeholder="Full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-hidden dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white lg:w-1/2"
                 />
 
                 <input
-                  name="lastName"
-                  type="text"
-                  placeholder="Last name"
-                  value={data.lastName}
-                  onChange={(e) =>
-                    setData({ ...data, [e.target.name]: e.target.value })
-                  }
+                  type="email"
+                  placeholder="Email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-hidden dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white lg:w-1/2"
                 />
               </div>
 
               <div className="mb-7.5 flex flex-col gap-7.5 lg:mb-12.5 lg:flex-row lg:justify-between lg:gap-14">
+
+
                 <input
-                  name="email"
-                  type="email"
-                  placeholder="Email address"
-                  value={data.email}
-                  onChange={(e) =>
-                    setData({ ...data, [e.target.name]: e.target.value })
-                  }
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-hidden dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white lg:w-1/2"
                 />
 
                 <input
-                  name="password"
                   type="password"
-                  placeholder="Password"
-                  value={data.password}
-                  onChange={(e) =>
-                    setData({ ...data, [e.target.name]: e.target.value })
-                  }
+                  placeholder="Repeat Password"
                   className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-hidden dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white lg:w-1/2"
                 />
               </div>
@@ -204,7 +208,7 @@ const Signup = () => {
                   </label>
                 </div>
 
-                <button
+                <button type="submit"
                   aria-label="signup with email and password"
                   className="inline-flex items-center gap-2.5 rounded-full bg-black px-6 py-3 font-medium text-white duration-300 ease-in-out hover:bg-blackho dark:bg-btndark dark:hover:bg-blackho"
                 >
