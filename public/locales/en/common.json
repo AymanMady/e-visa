@@ -1,0 +1,28 @@
+{
+"welcome": "Welcome",
+  "description": "Official e-Visa Application System for Mauritania",
+  "start_application": "Start Application",
+  "hero_text": "Official electronic visa application platform for the Islamic Republic of Mauritania.",
+  "hero_note": "Service of the Ministry of Interior and Decentralization.",
+  "core_features_title": "Main Features",
+  "core_features_subtitle": "Discover what MauriVisa offers",
+  "core_features_description": "Our e-visa system makes your application faster, safer, and entirely online.",
+  "sign_in": "Sign In",
+  "sign_up": "Sign Up",
+  "home": "Home",
+  "request": "Request",
+  "language": "Language",
+  "feature_visa_title": "Simplified Visa Application",
+  "feature_visa_desc": "Submit your information and documents online, without travel or queues.",
+  "feature_security_title": "Maximum Security",
+  "feature_security_desc": "Your data is protected by encryption and meets international security standards.",
+  "feature_payment_title": "Secure Payment",
+  "feature_payment_desc": "Pay your visa fees safely via card or bank transfer.",
+  "feature_tracking_title": "Real-Time Tracking",
+  "feature_tracking_desc": "Receive notifications at every step of your application.",
+  "feature_multilang_title": "Available in 3 Languages",
+  "feature_multilang_desc": "French, Arabic, and English: the platform adapts to your preferred language.",
+  "feature_support_title": "Official Support",
+  "feature_support_desc": "Dedicated support to answer your questions and guide you."
+
+}

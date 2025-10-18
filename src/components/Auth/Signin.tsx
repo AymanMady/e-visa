@@ -219,7 +219,7 @@ const Signin = () => {
 
               <div className="mt-12.5 border-t border-stroke py-5 text-center dark:border-strokedark">
                 <p>
-                  Don't have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <Link
                     className="text-black hover:text-primary dark:text-white dark:hover:text-primary"
                     href="/auth/signup"

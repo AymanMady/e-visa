@@ -1,6 +1,8 @@
+import { ReactElement } from "react";
+
 export type Feature = {
   id: number;
-  icon: string;
-  title: string;
-  description: string;
+  icon: ReactElement;
+  titleKey: string;
+  descKey: string;
 };

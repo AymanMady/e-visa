@@ -1,22 +1,26 @@
-import { Metadata } from "next";
+import { Metadata, InferGetStaticPropsType } from "next";
 import Hero from "@/components/Hero";
 import Feature from "@/components/Features";
-import FeaturesTab from "@/components/FeaturesTab";
-import Integration from "@/components/Integration";
+import { GetStaticProps } from 'next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import { useTranslation } from 'next-i18next';
 
-export const metadata: Metadata = {
-  title: "Next.js Starter Template for SaaS Startups - Solid SaaS Boilerplate",
 
-  // other metadata
-  description: "This is Home for Solid Pro"
-};
+export default function Home(props: InferGetStaticPropsType<typeof getStaticProps>) {
+  const { t } = useTranslation('common');
 
-export default function Home() {
   return (
     <main>
       <Hero />
       <Feature />
-      <FeaturesTab />
     </main>
   );
 }
+
+export const getStaticProps: GetStaticProps = async ({ locale }) => {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale ?? 'fr', ['common', 'footer'])),
+    },
+  };
+};

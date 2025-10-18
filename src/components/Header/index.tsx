@@ -3,18 +3,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslation } from "next-i18next";
 
 import ThemeToggler from "./ThemeToggler";
 import menuData from "./menuData";
+import LanguageSwitcher from "../../lib/utils/LanguageSwitcher";
 
 const Header = () => {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [dropdownToggler, setDropdownToggler] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
+  const { t } = useTranslation('common');
 
   const pathUrl = usePathname();
 
-  // Sticky menu
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
       setStickyMenu(true);
@@ -25,7 +27,8 @@ const Header = () => {
 
   useEffect(() => {
     window.addEventListener("scroll", handleStickyMenu);
-  });
+    return () => window.removeEventListener("scroll", handleStickyMenu);
+  }, []);
 
   return (
     <header
@@ -37,24 +40,23 @@ const Header = () => {
     >
       <div className="relative mx-auto max-w-c-1390 items-center justify-between px-4 md:px-8 xl:flex 2xl:px-0">
         <div className="flex w-full items-center justify-between xl:w-1/4">
-          <a href="/">
+          <Link href="/">
             <Image
-              src="/images/logo/logo-dark.svg"
+              src="/images/logo/logo-dark.png"
               alt="logo"
               width={119.03}
               height={30}
               className="hidden w-full dark:block"
             />
             <Image
-              src="/images/logo/logo-light.svg"
+              src="/images/logo/logo-light.png"
               alt="logo"
               width={119.03}
               height={30}
               className="w-full dark:hidden"
             />
-          </a>
+          </Link>
 
-          {/* <!-- Hamburger Toggle BTN --> */}
           <button
             aria-label="hamburger Toggler"
             className="block xl:hidden"
@@ -92,10 +94,8 @@ const Header = () => {
               </span>
             </span>
           </button>
-          {/* <!-- Hamburger Toggle BTN --> */}
         </div>
 
-        {/* Nav Menu Start   */}
         <div
           className={`invisible h-0 w-full items-center justify-between xl:visible xl:flex xl:h-auto xl:w-full ${
             navigationOpen &&
@@ -112,7 +112,7 @@ const Header = () => {
                         onClick={() => setDropdownToggler(!dropdownToggler)}
                         className="flex cursor-pointer items-center justify-between gap-3 hover:text-primary"
                       >
-                        {menuItem.title}
+                        {t(menuItem.title)} 
                         <span>
                           <svg
                             className="h-3 w-3 cursor-pointer fill-waterloo group-hover:fill-primary"
@@ -129,7 +129,7 @@ const Header = () => {
                       >
                         {menuItem.submenu.map((item, key) => (
                           <li key={key} className="hover:text-primary">
-                            <Link href={item.path || "#"}>{item.title}</Link>
+                            <Link href={item.path || "#"}>{t(item.title)}</Link>
                           </li>
                         ))}
                       </ul>
@@ -143,7 +143,7 @@ const Header = () => {
                           : "hover:text-primary"
                       }
                     >
-                      {menuItem.title}
+                      {t(menuItem.title)}
                     </Link>
                   )}
                 </li>
@@ -151,20 +151,21 @@ const Header = () => {
             </ul>
           </nav>
 
-          <div className="mt-7 flex items-center gap-6 xl:mt-0">
+          <div className="mt-7 flex items-center gap-4 xl:mt-0">
             <ThemeToggler />
+            <LanguageSwitcher />
 
             <Link
               href="/auth/signin"
               className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
             >
-              Sign In
+              {t('sign_in')}
             </Link>
             <Link
               href="/auth/signup"
               className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
             >
-              Sign Up
+              {t('sign_up')}
             </Link>
           </div>
         </div>
@@ -172,7 +173,5 @@ const Header = () => {
     </header>
   );
 };
-
-// w-full delay-300
 
 export default Header;

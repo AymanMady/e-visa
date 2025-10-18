@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import React, { useState } from "react";
 
-const Contact = () => {
+const RequestForm = () => {
   /**
    * Source: https://www.joshwcomeau.com/react/the-perils-of-rehydration/
    * Reason: To fix rehydration error
@@ -625,4 +625,4 @@ const Contact = () => {
   );
 };
 
-export default Contact;
+export default RequestForm;

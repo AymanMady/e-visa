@@ -1,8 +1,12 @@
 "use client";
 import { motion } from "framer-motion";
+import { useTranslation } from "next-i18next";
 import Image from "next/image";
+import Link from "next/link";
+import CurrentLanguage from "../../lib/utils/CurrentLanguage";
 
 const Footer = () => {
+  const { t } = useTranslation('footer');
   return (
     <>
       <footer className="border-t border-stroke bg-white dark:border-strokedark dark:bg-blacksection">
@@ -28,37 +32,35 @@ const Footer = () => {
                 viewport={{ once: true }}
                 className="animate_top w-1/2 lg:w-1/4"
               >
-                <a href="/" className="relative">
+                <Link href="/" className="relative">
                   <Image
                     width={110}
                     height={80}
-                    src="/images/logo/logo-light.svg"
+                    src="/images/logo/logo-light.png"
                     alt="Logo"
                     className="dark:hidden"
                   />
                   <Image
                     width={110}
                     height={80}
-                    src="/images/logo/logo-dark.svg"
+                    src="/images/logo/logo-dark.png"
                     alt="Logo"
                     className="hidden dark:block"
                   />
-                </a>
+                </Link>
 
                 <p className="mb-10 mt-5">
-                  Islamique Republique Of Mauritanie
-                  Ministry of the Interior and Decentralization
-                  National Agency for the Population Register and Secure Titles
+                  {t('description')}
                 </p>
 
                 <p className="mb-1.5 text-sectiontitle uppercase tracking-[5px]">
-                  contact
+                  {t('contact')}
                 </p>
                 <a
                   href="#"
                   className="text-itemtitle font-medium text-black dark:text-white"
                 >
-                  hello@solid.com
+                  contact@maurivisa.mr
                 </a>
               </motion.div>
 
@@ -123,7 +125,7 @@ const Footer = () => {
                   className="animate_top"
                 >
        <h4 className="mb-9 text-itemtitle2 font-medium text-black dark:text-white">
-                    Quick Links
+                    {t('quick_links')}
                   </h4>
 
                   <ul>
@@ -132,7 +134,7 @@ const Footer = () => {
                         href="#"
                         className="mb-3 inline-block hover:text-primary"
                       >
-                        Home
+                        {t('home')}
                       </a>
                     </li>
                     <li>
@@ -140,7 +142,7 @@ const Footer = () => {
                         href="#"
                         className="mb-3 inline-block hover:text-primary"
                       >
-                        Request
+                        {t('request')}
                       </a>
                     </li>
                   </ul>
@@ -173,17 +175,17 @@ const Footer = () => {
               <ul className="flex items-center gap-8">
                 <li>
                   <a href="#" className="hover:text-primary">
-                    English
+                    <CurrentLanguage />
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-primary">
-                    Privacy Policy
+                    {t('privacy_policy')}
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-primary">
-                    Support
+                    {t('support')}
                   </a>
                 </li>
               </ul>
@@ -208,7 +210,7 @@ const Footer = () => {
               className="animate_top"
             >
               <p>
-                &copy; {new Date().getFullYear()} Solid. All rights reserved
+                &copy; {new Date().getFullYear()} {t('copyright')}
               </p>
             </motion.div>
 
