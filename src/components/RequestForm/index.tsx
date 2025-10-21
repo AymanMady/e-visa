@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
+import { useTranslation } from "next-i18next";
 
 interface FormData {
   // General Info
@@ -41,6 +42,7 @@ interface FormData {
 
 const RequestForm = () => {
   const router = useRouter();
+  const { t } = useTranslation('common');
   const [hasMounted, setHasMounted] = React.useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -116,24 +118,24 @@ const RequestForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.email) newErrors.email = "Email is required";
-      if (!formData.phone) newErrors.phone = "Phone is required";
-      if (!formData.arrivalDate) newErrors.arrivalDate = "Arrival date is required";
-      if (!formData.addressInMauritania) newErrors.addressInMauritania = "Address is required";
+      if (!formData.email) newErrors.email = t('errors.required');
+      if (!formData.phone) newErrors.phone = t('errors.required');
+      if (!formData.arrivalDate) newErrors.arrivalDate = t('errors.required');
+      if (!formData.addressInMauritania) newErrors.addressInMauritania = t('errors.required');
     } else if (step === 2) {
-      if (!formData.documentNumber) newErrors.documentNumber = "Document number is required";
-      if (!formData.issueDate) newErrors.issueDate = "Issue date is required";
-      if (!formData.expiryDate) newErrors.expiryDate = "Expiry date is required";
-      if (!formData.placeOfIssue) newErrors.placeOfIssue = "Place of issue is required";
+      if (!formData.documentNumber) newErrors.documentNumber = t('errors.required');
+      if (!formData.issueDate) newErrors.issueDate = t('errors.required');
+      if (!formData.expiryDate) newErrors.expiryDate = t('errors.required');
+      if (!formData.placeOfIssue) newErrors.placeOfIssue = t('errors.required');
     } else if (step === 3) {
-      if (!formData.firstName) newErrors.firstName = "First name is required";
-      if (!formData.lastName) newErrors.lastName = "Last name is required";
-      if (!formData.birthDate) newErrors.birthDate = "Birth date is required";
-      if (!formData.birthPlace) newErrors.birthPlace = "Birth place is required";
-      if (!formData.nationality) newErrors.nationality = "Nationality is required";
-      if (!formData.occupation) newErrors.occupation = "Occupation is required";
+      if (!formData.firstName) newErrors.firstName = t('errors.required');
+      if (!formData.lastName) newErrors.lastName = t('errors.required');
+      if (!formData.birthDate) newErrors.birthDate = t('errors.required');
+      if (!formData.birthPlace) newErrors.birthPlace = t('errors.required');
+      if (!formData.nationality) newErrors.nationality = t('errors.required');
+      if (!formData.occupation) newErrors.occupation = t('errors.required');
     } else if (step === 4) {
-      if (!formData.photo) newErrors.photo = "Photo is required";
+      if (!formData.photo) newErrors.photo = t('errors.required');
     }
 
     setErrors(newErrors);
@@ -227,12 +229,12 @@ const RequestForm = () => {
   };
 
   const steps = [
-    { number: 1, title: "General Information" },
-    { number: 2, title: "Passport Information" },
-    { number: 3, title: "Traveler Information" },
-    { number: 4, title: "Photo Upload" },
-    { number: 5, title: "Documents" },
-    { number: 6, title: "Review & Submit" },
+    { number: 1, title: t('visa_application.steps.general_info') },
+    { number: 2, title: t('visa_application.steps.passport_info') },
+    { number: 3, title: t('visa_application.steps.traveler_info') },
+    { number: 4, title: t('visa_application.steps.photo') },
+    { number: 5, title: t('visa_application.steps.documents') },
+    { number: 6, title: t('visa_application.steps.review') },
   ];
 
   return (
@@ -371,14 +373,14 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        General Information
+                        {t('visa_application.steps.general_info')}
                       </h2>
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Email Address *
+                              {t('visa_application.general.email')} *
                             </label>
                             <input
                               type="email"
@@ -394,7 +396,7 @@ const RequestForm = () => {
                           </div>
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Phone Number *
+                              {t('visa_application.general.phone')} *
                             </label>
                             <input
                               type="tel"
@@ -414,7 +416,7 @@ const RequestForm = () => {
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Travel Purpose *
+                              {t('visa_application.general.travel_purpose')} *
                             </label>
                             <select
                               name="travelPurpose"
@@ -432,7 +434,7 @@ const RequestForm = () => {
                           </div>
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Planned Arrival Date *
+                              {t('visa_application.general.arrival_date')} *
                             </label>
                             <input
                               type="date"
@@ -451,7 +453,7 @@ const RequestForm = () => {
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Number of Entries *
+                              {t('visa_application.general.number_of_entries')} *
                             </label>
                             <select
                               name="numberOfEntries"
@@ -465,7 +467,7 @@ const RequestForm = () => {
                           </div>
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Address in Mauritania *
+                              {t('visa_application.general.address_in_mauritania')} *
                             </label>
                             <input
                               type="text"
@@ -485,7 +487,7 @@ const RequestForm = () => {
                         <div className="mb-11.5 flex">
                           <div className="w-full">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Description of Travel Purpose
+                              {t('visa_application.general.purpose_description')}
                             </label>
                             <textarea
                               name="purposeDescription"
@@ -555,7 +557,7 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        Passport Information
+                        {t('visa_application.steps.passport_info')}
                       </h2>
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
@@ -735,7 +737,7 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        Traveler Information
+                        {t('visa_application.steps.traveler_info')}
                       </h2>
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
@@ -958,7 +960,7 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        Photo Upload
+                        {t('visa_application.steps.photo')}
                       </h2>
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
@@ -1089,7 +1091,7 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        Supporting Documents
+                        {t('visa_application.documents.upload_documents')}
                       </h2>
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
@@ -1235,7 +1237,7 @@ const RequestForm = () => {
                       className="animate_top w-full rounded-lg bg-white p-7.5 shadow-solid-8 dark:border dark:border-strokedark dark:bg-black md:w-3/5 lg:w-full xl:p-15"
                     >
                       <h2 className="mb-10 text-2xl font-semibold text-black dark:text-white xl:text-3xl">
-                        Review & Submit
+                        {t('visa_application.steps.review')}
                       </h2>
 
                       <div className="space-y-8">
@@ -1397,7 +1399,7 @@ const RequestForm = () => {
                             disabled={loading}
                             className="inline-flex items-center gap-2.5 rounded-full bg-primary px-8 py-3 font-medium text-white duration-300 ease-in-out hover:bg-primaryho disabled:opacity-50"
                           >
-                            {loading ? "Submitting..." : "Submit Application"}
+                            {loading ? t('common.loading') : t('visa_application.submit')}
                             {!loading && (
                               <svg
                                 className="fill-white"

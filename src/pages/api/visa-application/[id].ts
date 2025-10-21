@@ -1,11 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-interface JwtPayload {
-  userId: string;
-  email: string;
-}
+import { requireAuth } from "@/lib/auth-helpers";
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,27 +15,17 @@ export default async function handler(
   // GET - Retrieve application details
   if (req.method === "GET") {
     try {
-      // Get token from Authorization header
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const token = authHeader.split(" ")[1];
-      
-      // Verify token
-      let decoded: JwtPayload;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as JwtPayload;
-      } catch (error) {
-        return res.status(401).json({ message: "Invalid token" });
+      // Verify authentication with NextAuth
+      const user = await requireAuth(req, res);
+      if (!user) {
+        return; // requireAuth already sent error response
       }
 
       // Get application
       const application = await prisma.visaApplication.findFirst({
         where: {
           id,
-          userId: decoded.userId,
+          userId: user.id,
         },
         include: {
           generalInfo: true,
@@ -78,27 +63,17 @@ export default async function handler(
   // PUT - Update application (only if status is pending or rejected)
   if (req.method === "PUT") {
     try {
-      // Get token from Authorization header
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const token = authHeader.split(" ")[1];
-      
-      // Verify token
-      let decoded: JwtPayload;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as JwtPayload;
-      } catch (error) {
-        return res.status(401).json({ message: "Invalid token" });
+      // Verify authentication with NextAuth
+      const user = await requireAuth(req, res);
+      if (!user) {
+        return; // requireAuth already sent error response
       }
 
       // Check if application exists and belongs to user
       const existingApplication = await prisma.visaApplication.findFirst({
         where: {
           id,
-          userId: decoded.userId,
+          userId: user.id,
         },
       });
 

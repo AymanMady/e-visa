@@ -3,6 +3,7 @@ import type { AppProps } from "next/app";
 import { appWithTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import { SessionProvider } from "next-auth/react";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -28,18 +29,20 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, [locale]);
 
   return (
-    <ThemeProvider enableSystem={false} attribute="class" defaultTheme="light">
-      <div className={`dark:bg-black ${inter.className}`}>
-        <Lines />
-        <Header />
-        <ToasterContext />
-        <main>
-          <Component {...pageProps} />
-        </main>
-        <Footer />
-        <ScrollToTop />
-      </div>
-    </ThemeProvider>
+    <SessionProvider session={pageProps.session}>
+      <ThemeProvider enableSystem={false} attribute="class" defaultTheme="light">
+        <div className={`dark:bg-black ${inter.className}`}>
+          <Lines />
+          <Header />
+          <ToasterContext />
+          <main>
+            <Component {...pageProps} />
+          </main>
+          <Footer />
+          <ScrollToTop />
+        </div>
+      </ThemeProvider>
+    </SessionProvider>
   );
 }
 

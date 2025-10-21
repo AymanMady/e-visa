@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "next-i18next";
+import { useSession, signOut } from "next-auth/react";
 
 import ThemeToggler from "./ThemeToggler";
 import menuData from "./menuData";
@@ -13,7 +14,9 @@ const Header = () => {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [dropdownToggler, setDropdownToggler] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { t } = useTranslation('common');
+  const { data: session, status } = useSession();
 
   const pathUrl = usePathname();
 
@@ -104,50 +107,81 @@ const Header = () => {
         >
           <nav>
             <ul className="flex flex-col gap-5 xl:flex-row xl:items-center xl:gap-10">
-              {menuData.map((menuItem, key) => (
-                <li key={key} className={menuItem.submenu && "group relative"}>
-                  {menuItem.submenu ? (
-                    <>
-                      <button
-                        onClick={() => setDropdownToggler(!dropdownToggler)}
-                        className="flex cursor-pointer items-center justify-between gap-3 hover:text-primary"
-                      >
-                        {t(menuItem.title)} 
-                        <span>
-                          <svg
-                            className="h-3 w-3 cursor-pointer fill-waterloo group-hover:fill-primary"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 512 512"
-                          >
-                            <path d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z" />
-                          </svg>
-                        </span>
-                      </button>
-
-                      <ul
-                        className={`dropdown ${dropdownToggler ? "flex" : ""}`}
-                      >
-                        {menuItem.submenu.map((item, key) => (
-                          <li key={key} className="hover:text-primary">
-                            <Link href={item.path || "#"}>{t(item.title)}</Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
+              {/* Pour les admins, afficher uniquement Accueil et Dashboard Admin */}
+              {session?.user?.role === "admin" ? (
+                <>
+                  <li>
                     <Link
-                      href={`${menuItem.path}`}
+                      href="/"
                       className={
-                        pathUrl === menuItem.path
+                        pathUrl === "/"
                           ? "text-primary hover:text-primary"
                           : "hover:text-primary"
                       }
                     >
-                      {t(menuItem.title)}
+                      {t("home")}
                     </Link>
-                  )}
-                </li>
-              ))}
+                  </li>
+                  <li>
+                    <Link
+                      href="/admin"
+                      className={
+                        pathUrl === "/admin"
+                          ? "text-primary hover:text-primary"
+                          : "hover:text-primary"
+                      }
+                    >
+                      {t("admin_dashboard")}
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                /* Pour les utilisateurs normaux, afficher le menu standard */
+                menuData.map((menuItem, key) => (
+                  <li key={key} className={menuItem.submenu && "group relative"}>
+                    {menuItem.submenu ? (
+                      <>
+                        <button
+                          onClick={() => setDropdownToggler(!dropdownToggler)}
+                          className="flex cursor-pointer items-center justify-between gap-3 hover:text-primary"
+                        >
+                          {t(menuItem.title)} 
+                          <span>
+                            <svg
+                              className="h-3 w-3 cursor-pointer fill-waterloo group-hover:fill-primary"
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 512 512"
+                            >
+                              <path d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z" />
+                            </svg>
+                          </span>
+                        </button>
+
+                        <ul
+                          className={`dropdown ${dropdownToggler ? "flex" : ""}`}
+                        >
+                          {menuItem.submenu.map((item, key) => (
+                            <li key={key} className="hover:text-primary">
+                              <Link href={item.path || "#"}>{t(item.title)}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : (
+                      <Link
+                        href={`${menuItem.path}`}
+                        className={
+                          pathUrl === menuItem.path
+                            ? "text-primary hover:text-primary"
+                            : "hover:text-primary"
+                        }
+                      >
+                        {t(menuItem.title)}
+                      </Link>
+                    )}
+                  </li>
+                ))
+              )}
             </ul>
           </nav>
 
@@ -155,18 +189,124 @@ const Header = () => {
             <ThemeToggler />
             <LanguageSwitcher />
 
-            <Link
-              href="/auth/signin"
-              className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
-            >
-              {t('sign_in')}
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
-            >
-              {t('sign_up')}
-            </Link>
+            {status === "loading" ? (
+              <div className="h-10 w-20 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            ) : session ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
+                >
+                  {session.user?.image ? (
+                    <Image
+                      src={session.user.image}
+                      alt={session.user.name || "User"}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center">
+                      <span className="text-sm font-semibold">
+                        {session.user?.name?.[0]?.toUpperCase() || "U"}
+                      </span>
+                    </div>
+                  )}
+                  <span className="hidden sm:inline">{session.user?.name || "Utilisateur"}</span>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg dark:bg-blacksection">
+                    <div className="px-4 py-3 border-b border-stroke dark:border-strokedark">
+                      <p className="text-sm font-medium text-black dark:text-white">
+                        {session.user?.name}
+                      </p>
+                      <p className="text-xs text-waterloo dark:text-manatee">
+                        {session.user?.email}
+                      </p>
+                      {session.user?.role === "admin" && (
+                        <span className="mt-1 inline-block rounded bg-primary px-2 py-0.5 text-xs font-semibold text-white">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                    <div className="py-2">
+                      {session.user?.role === "admin" ? (
+                        /* Menu pour les admins */
+                        <>
+                          <Link
+                            href="/admin"
+                            className="block px-4 py-2 text-sm font-medium text-primary hover:bg-gray-100 dark:hover:bg-strokedark"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            {t("admin_dashboard")}
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              signOut({ callbackUrl: "/" });
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-strokedark"
+                          >
+                            {t("logout")}
+                          </button>
+                        </>
+                      ) : (
+                        /* Menu pour les utilisateurs normaux */
+                        <>
+                          <Link
+                            href="/my-applications"
+                            className="block px-4 py-2 text-sm text-black hover:bg-gray-100 dark:text-white dark:hover:bg-strokedark"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            📋 {t("my_visa_applications")}
+                          </Link>
+                          <Link
+                            href="/request"
+                            className="block px-4 py-2 text-sm text-black hover:bg-gray-100 dark:text-white dark:hover:bg-strokedark"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            ➕ {t("new_application")}
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              signOut({ callbackUrl: "/" });
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-strokedark"
+                          >
+                            {t("logout")}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/auth/signin"
+                  className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
+                >
+                  {t('sign_in')}
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="flex items-center justify-center rounded-full bg-primary px-7.5 py-2.5 text-regular text-white duration-300 ease-in-out hover:bg-primaryho"
+                >
+                  {t('sign_up')}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

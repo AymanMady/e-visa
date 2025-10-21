@@ -1,12 +1,6 @@
 import Signin from "@/components/Auth/Signin";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Login Page - Solid SaaS Boilerplate",
-
-  // other metadata
-  description: "This is Login page for Startup Pro"
-};
+import { GetStaticProps } from 'next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 
 const SigninPage = () => {
   return (
@@ -14,6 +8,14 @@ const SigninPage = () => {
       <Signin />
     </>
   );
+};
+
+export const getStaticProps: GetStaticProps = async ({ locale }) => {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale ?? 'fr', ['common'])),
+    },
+  };
 };
 
 export default SigninPage;

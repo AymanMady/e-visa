@@ -1,12 +1,6 @@
 import Signup from "@/components/Auth/Signup";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Sign Up Page - Solid SaaS Boilerplate",
-
-  // other metadata
-  description: "This is Sign Up page for Startup Pro"
-};
+import { GetStaticProps } from 'next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 
 export default function Register() {
   return (
@@ -15,3 +9,11 @@ export default function Register() {
     </>
   );
 }
+
+export const getStaticProps: GetStaticProps = async ({ locale }) => {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale ?? 'fr', ['common'])),
+    },
+  };
+};

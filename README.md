@@ -1,4 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# 🇲🇷 E-Visa Mauritanie
+
+Plateforme de demande de visa électronique pour la Mauritanie.
+
+## 📋 Table des matières
+
+- [Démarrage rapide](#getting-started)
+- [🛡️ Système d'Administration](#système-dadministration)
+- [🔐 Authentification](#authentification)
+- [📝 Formulaire de demande](#formulaire-de-demande)
+- [🌍 Internationalisation](#internationalisation)
+- [🚀 Déploiement](#deploy-on-vercel)
+
+---
+
+## 🛡️ Système d'Administration
+
+### Accès rapide
+Le projet inclut un système d'administration complet pour gérer les demandes de visa.
+
+**Documentation complète:**
+- 📖 **[Guide de démarrage rapide](./ADMIN_QUICK_START.md)** - Commencez en 3 étapes
+- 📚 **[Documentation complète](./ADMIN_SETUP.md)** - Guide détaillé
+- 📋 **[Changelog](./ADMIN_CHANGELOG.md)** - Liste des modifications
+
+### Installation rapide
+
+```bash
+# 1. Mettre à jour la base de données
+npx prisma generate
+npx prisma db push
+
+# 2. Créer un administrateur
+node scripts/create-admin.js admin@example.com MotDePasse123 "Admin"
+
+# 3. Démarrer l'application
+npm run dev
+
+# 4. Se connecter et accéder à /admin
+```
+
+### Fonctionnalités Admin
+- ✅ Dashboard avec statistiques en temps réel
+- ✅ Gestion des demandes de visa
+- ✅ Filtrage et recherche avancés
+- ✅ Mise à jour des statuts
+- ✅ Historique des modifications
+- ✅ Interface responsive
+- ✅ Mode sombre/clair
+
+### Scripts disponibles
+```bash
+# Créer un admin
+node scripts/create-admin.js <email> <password> [name]
+
+# Promouvoir un utilisateur
+node scripts/promote-to-admin.js <email>
+
+# Lister les admins
+node scripts/list-admins.js
+
+# Rétrograder un admin
+node scripts/demote-admin.js <email>
+```
+
+---
 
 ## Getting Started
 
