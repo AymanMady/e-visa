@@ -1,12 +1,18 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
+import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 
+// MongoDB connection helper
+const getMongoClient = async () => {
+  const client = new MongoClient(process.env.DATABASE_URL!);
+  await client.connect();
+  return client;
+};
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // No adapter - use JWT strategy only
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -23,9 +29,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email et mot de passe requis");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        const client = await getMongoClient();
+        const db = client.db("e-visa");
+        const users = db.collection("User");
+
+        const user = await users.findOne({ email: credentials.email });
+        await client.close();
 
         if (!user || !user.password) {
           throw new Error("Identifiants incorrects");
@@ -40,14 +49,24 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Identifiants incorrects");
         }
 
-        // Update last login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
-        });
+        // Update last login using MongoDB directly
+        try {
+          const updateClient = await getMongoClient();
+          const updateDb = updateClient.db("e-visa");
+          const updateUsers = updateDb.collection("User");
+          
+          await updateUsers.updateOne(
+            { _id: user._id },
+            { $set: { lastLogin: new Date() } }
+          );
+          
+          await updateClient.close();
+        } catch (error) {
+          console.error("Error updating last login:", error);
+        }
 
         return {
-          id: user.id,
+          id: user._id.toString(),
           email: user.email || "",
           name: user.name || "",
           role: user.role || "user",
@@ -65,22 +84,43 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.picture = user.image;
       } else if (token.id) {
-        // Refresh role from database on each request
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { role: true },
-        });
-        if (dbUser) {
-          token.role = dbUser.role || "user";
+        // Refresh role from database on each request using MongoDB
+        try {
+          const client = await getMongoClient();
+          const db = client.db("e-visa");
+          const users = db.collection("User");
+          
+          const dbUser = await users.findOne(
+            { _id: new ObjectId(token.id as string) },
+            { projection: { role: 1 } }
+          );
+          
+          if (dbUser) {
+            token.role = dbUser.role || "user";
+          }
+          
+          await client.close();
+        } catch (error) {
+          console.error("Error refreshing role:", error);
         }
       }
       
-      // If this is a Google sign-in, update last login
+      // If this is a Google sign-in, update last login using MongoDB
       if (account?.provider === "google" && user?.id) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
-        });
+        try {
+          const client = await getMongoClient();
+          const db = client.db("e-visa");
+          const users = db.collection("User");
+          
+          await users.updateOne(
+            { _id: new ObjectId(user.id) },
+            { $set: { lastLogin: new Date() } }
+          );
+          
+          await client.close();
+        } catch (error) {
+          console.error("Error updating last login:", error);
+        }
       }
 
       return token;
@@ -103,7 +143,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 3 * 24 * 60 * 60, // 3 days
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",

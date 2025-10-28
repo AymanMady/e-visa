@@ -49,9 +49,12 @@ const Footer = () => {
                   />
                 </Link>
 
-                <p className="mb-10 mt-5">
-                  {t('description')}
-                </p>
+                <p 
+                  className="mb-10 mt-5 whitespace-pre-line"
+                  dangerouslySetInnerHTML={{ 
+                    __html: t('description').replace(/\n/g, '<br/>') 
+                  }}
+                />
 
                 <p className="mb-1.5 text-sectiontitle uppercase tracking-[5px]">
                   {t('contact')}

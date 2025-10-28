@@ -20,10 +20,10 @@ const RequestPage = () => {
           <p className="mt-4 text-lg text-waterloo dark:text-manatee">
             {t('welcome')} {session?.user?.name}, {t('visa_application.subtitle')}
           </p>
-        </div>
-        <RequestForm />
-      </div>
-    </div>
+         </div>
+         <RequestForm />
+       </div>
+     </div>
   );
 };
 
@@ -43,3 +43,5 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 };
 
 export default RequestPage;
+
+

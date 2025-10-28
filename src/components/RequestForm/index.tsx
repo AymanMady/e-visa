@@ -4,11 +4,21 @@ import Image from "next/image";
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
+import CountryCodeSelector from "@/components/Common/CountryCodeSelector";
+import EmailValidator from "@/components/Common/EmailValidator";
+
+interface CountryCode {
+  code: string;
+  name: string;
+  flag: string;
+  dialCode: string;
+}
 
 interface FormData {
   // General Info
   email: string;
   phone: string;
+  countryCode: CountryCode | null;
   travelPurpose: string;
   arrivalDate: string;
   numberOfEntries: string;
@@ -30,6 +40,7 @@ interface FormData {
   birthPlace: string;
   nationality: string;
   gender: string;
+  maritalStatus: string;
   occupation: string;
   
   // Photo & Documents
@@ -47,10 +58,14 @@ const RequestForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [emailValid, setEmailValid] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const [formData, setFormData] = useState<FormData>({
     email: "",
     phone: "",
+    countryCode: null,
     travelPurpose: "tourism",
     arrivalDate: "",
     numberOfEntries: "double",
@@ -68,6 +83,7 @@ const RequestForm = () => {
     birthPlace: "",
     nationality: "",
     gender: "male",
+    maritalStatus: "",
     occupation: "",
     photo: null,
     documents: [],
@@ -76,17 +92,48 @@ const RequestForm = () => {
 
   React.useEffect(() => {
     setHasMounted(true);
+    
+    // Load saved form data from localStorage
+    const savedFormData = localStorage.getItem('visa-form-data');
+    if (savedFormData) {
+      try {
+        const parsed = JSON.parse(savedFormData);
+        setFormData(prev => ({ ...prev, ...parsed }));
+      } catch (error) {
+        console.error('Error loading saved form data:', error);
+      }
+    }
+    
+    // Load completed steps from localStorage
+    const savedCompletedSteps = localStorage.getItem('visa-completed-steps');
+    if (savedCompletedSteps) {
+      try {
+        const parsed = JSON.parse(savedCompletedSteps);
+        setCompletedSteps(new Set(parsed));
+      } catch (error) {
+        console.error('Error loading completed steps:', error);
+      }
+    }
   }, []);
 
   if (!hasMounted) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    
+    // Save to localStorage
+    localStorage.setItem('visa-form-data', JSON.stringify(newFormData));
+    
     // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -107,6 +154,208 @@ const RequestForm = () => {
     }
   };
 
+  // Validation functions
+  const validateEmail = (email: string): string | null => {
+    if (!email) return t('validation.email_required');
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return t('validation.email_invalid');
+    
+    return null;
+  };
+
+  const validatePhone = (phone: string, countryCode: CountryCode | null): string | null => {
+    if (!phone) return t('validation.phone_required');
+    if (!countryCode) return t('validation.phone_international');
+    
+    // Remove any non-digit characters except +
+    const cleanPhone = phone.replace(/[^\d+]/g, '');
+    
+    // Check if phone starts with country code
+    if (!cleanPhone.startsWith(countryCode.dialCode)) {
+      return t('validation.phone_international');
+    }
+    
+    // Basic length validation (country code + at least 7 digits)
+    if (cleanPhone.length < countryCode.dialCode.length + 7) {
+      return t('validation.phone_invalid');
+    }
+    
+    return null;
+  };
+
+  const validateArrivalDate = (date: string): string | null => {
+    if (!date) return t('validation.arrival_date_required');
+    
+    const arrivalDate = new Date(date);
+    const today = new Date();
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(today.getFullYear() + 1);
+    
+    // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
+    arrivalDate.setHours(0, 0, 0, 0);
+    oneYearFromNow.setHours(0, 0, 0, 0);
+    
+    if (arrivalDate < today) {
+      return t('validation.arrival_date_past');
+    }
+    
+    if (arrivalDate > oneYearFromNow) {
+      return t('validation.arrival_date_future');
+    }
+    
+    return null;
+  };
+
+  const validateAddress = (address: string): string | null => {
+    if (!address) return t('validation.address_required');
+    if (address.length > 50) return t('validation.address_too_long');
+    return null;
+  };
+
+  const validateDescription = (description: string): string | null => {
+    if (!description) return t('validation.description_required');
+    if (description.length < 30) return t('validation.description_min_length');
+    if (description.length > 3000) return t('validation.description_max_length');
+    return null;
+  };
+
+  // Passport validation functions
+  const validatePassportNumber = (passportNumber: string): string | null => {
+    if (!passportNumber) return t('validation.passport_number_required');
+    if (passportNumber.length > 10) return t('validation.passport_number_length');
+    
+    // Check if contains only letters and numbers
+    const alphanumericRegex = /^[A-Za-z0-9]+$/;
+    if (!alphanumericRegex.test(passportNumber)) {
+      return t('validation.passport_number_invalid');
+    }
+    
+    return null;
+  };
+
+  const validateIssueDate = (issueDate: string): string | null => {
+    if (!issueDate) return t('validation.issue_date_required');
+    
+    const date = new Date(issueDate);
+    const today = new Date();
+    const tenYearsAgo = new Date();
+    tenYearsAgo.setFullYear(today.getFullYear() - 10);
+    
+    // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    tenYearsAgo.setHours(0, 0, 0, 0);
+    
+    if (date > today) {
+      return t('validation.issue_date_future');
+    }
+    
+    if (date < tenYearsAgo) {
+      return t('validation.issue_date_old');
+    }
+    
+    return null;
+  };
+
+  const validateExpiryDate = (expiryDate: string, issueDate: string): string | null => {
+    if (!expiryDate) return t('validation.expiry_date_required');
+    
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    
+    // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    
+    if (expiry < today) {
+      return t('validation.expiry_date_past');
+    }
+    
+    if (issueDate) {
+      const issue = new Date(issueDate);
+      issue.setHours(0, 0, 0, 0);
+      
+      if (expiry <= issue) {
+        return t('validation.expiry_date_after_issue');
+      }
+    }
+    
+    return null;
+  };
+
+  const validatePlaceOfIssue = (placeOfIssue: string): string | null => {
+    if (!placeOfIssue) return t('validation.place_of_issue_required');
+    if (placeOfIssue.length > 50) return t('validation.place_of_issue_length');
+    return null;
+  };
+
+  // Traveler validation functions
+  const validateFirstName = (firstName: string): string | null => {
+    if (!firstName) return t('validation.first_name_required');
+    if (firstName.length > 50) return t('validation.first_name_length');
+    return null;
+  };
+
+  const validateLastName = (lastName: string): string | null => {
+    if (!lastName) return t('validation.last_name_required');
+    if (lastName.length > 50) return t('validation.last_name_length');
+    return null;
+  };
+
+  const validateBirthDate = (birthDate: string): string | null => {
+    if (!birthDate) return t('validation.birth_date_required');
+    
+    const date = new Date(birthDate);
+    const today = new Date();
+    const oneHundredTwentyYearsAgo = new Date();
+    oneHundredTwentyYearsAgo.setFullYear(today.getFullYear() - 120);
+    
+    // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    oneHundredTwentyYearsAgo.setHours(0, 0, 0, 0);
+    
+    if (date > today) {
+      return t('validation.birth_date_future');
+    }
+    
+    if (date < oneHundredTwentyYearsAgo) {
+      return t('validation.birth_date_old');
+    }
+    
+    return null;
+  };
+
+  const validateBirthPlace = (birthPlace: string): string | null => {
+    if (!birthPlace) return t('validation.birth_place_required');
+    if (birthPlace.length > 50) return t('validation.birth_place_length');
+    return null;
+  };
+
+  const validateNationality = (nationality: string): string | null => {
+    if (!nationality) return t('validation.nationality_required');
+    return null;
+  };
+
+  const validateGender = (gender: string): string | null => {
+    if (!gender) return t('validation.gender_required');
+    return null;
+  };
+
+  const validateMaritalStatus = (maritalStatus: string): string | null => {
+    if (!maritalStatus) return t('validation.marital_status_required');
+    return null;
+  };
+
+  const validateOccupation = (occupation: string): string | null => {
+    if (!occupation) return t('validation.occupation_required');
+    if (occupation.length > 100) return t('validation.occupation_length');
+    return null;
+  };
+
   const removeDocument = (index: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -118,22 +367,75 @@ const RequestForm = () => {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.email) newErrors.email = t('errors.required');
-      if (!formData.phone) newErrors.phone = t('errors.required');
-      if (!formData.arrivalDate) newErrors.arrivalDate = t('errors.required');
-      if (!formData.addressInMauritania) newErrors.addressInMauritania = t('errors.required');
+      // Email validation
+      const emailError = validateEmail(formData.email);
+      if (emailError) newErrors.email = emailError;
+
+      // Phone validation
+      const phoneError = validatePhone(formData.phone, formData.countryCode);
+      if (phoneError) newErrors.phone = phoneError;
+
+      // Arrival date validation
+      const arrivalDateError = validateArrivalDate(formData.arrivalDate);
+      if (arrivalDateError) newErrors.arrivalDate = arrivalDateError;
+
+      // Address validation
+      const addressError = validateAddress(formData.addressInMauritania);
+      if (addressError) newErrors.addressInMauritania = addressError;
+
+      // Description validation
+      const descriptionError = validateDescription(formData.purposeDescription);
+      if (descriptionError) newErrors.purposeDescription = descriptionError;
+
     } else if (step === 2) {
-      if (!formData.documentNumber) newErrors.documentNumber = t('errors.required');
-      if (!formData.issueDate) newErrors.issueDate = t('errors.required');
-      if (!formData.expiryDate) newErrors.expiryDate = t('errors.required');
-      if (!formData.placeOfIssue) newErrors.placeOfIssue = t('errors.required');
+      // Passport number validation
+      const passportNumberError = validatePassportNumber(formData.documentNumber);
+      if (passportNumberError) newErrors.documentNumber = passportNumberError;
+
+      // Issue date validation
+      const issueDateError = validateIssueDate(formData.issueDate);
+      if (issueDateError) newErrors.issueDate = issueDateError;
+
+      // Expiry date validation
+      const expiryDateError = validateExpiryDate(formData.expiryDate, formData.issueDate);
+      if (expiryDateError) newErrors.expiryDate = expiryDateError;
+
+      // Place of issue validation
+      const placeOfIssueError = validatePlaceOfIssue(formData.placeOfIssue);
+      if (placeOfIssueError) newErrors.placeOfIssue = placeOfIssueError;
+
     } else if (step === 3) {
-      if (!formData.firstName) newErrors.firstName = t('errors.required');
-      if (!formData.lastName) newErrors.lastName = t('errors.required');
-      if (!formData.birthDate) newErrors.birthDate = t('errors.required');
-      if (!formData.birthPlace) newErrors.birthPlace = t('errors.required');
-      if (!formData.nationality) newErrors.nationality = t('errors.required');
-      if (!formData.occupation) newErrors.occupation = t('errors.required');
+      // First name validation
+      const firstNameError = validateFirstName(formData.firstName);
+      if (firstNameError) newErrors.firstName = firstNameError;
+
+      // Last name validation
+      const lastNameError = validateLastName(formData.lastName);
+      if (lastNameError) newErrors.lastName = lastNameError;
+
+      // Birth date validation
+      const birthDateError = validateBirthDate(formData.birthDate);
+      if (birthDateError) newErrors.birthDate = birthDateError;
+
+      // Birth place validation
+      const birthPlaceError = validateBirthPlace(formData.birthPlace);
+      if (birthPlaceError) newErrors.birthPlace = birthPlaceError;
+
+      // Nationality validation
+      const nationalityError = validateNationality(formData.nationality);
+      if (nationalityError) newErrors.nationality = nationalityError;
+
+      // Gender validation
+      const genderError = validateGender(formData.gender);
+      if (genderError) newErrors.gender = genderError;
+
+      // Marital status validation
+      const maritalStatusError = validateMaritalStatus(formData.maritalStatus);
+      if (maritalStatusError) newErrors.maritalStatus = maritalStatusError;
+
+      // Occupation validation
+      const occupationError = validateOccupation(formData.occupation);
+      if (occupationError) newErrors.occupation = occupationError;
     } else if (step === 4) {
       if (!formData.photo) newErrors.photo = t('errors.required');
     }
@@ -142,9 +444,169 @@ const RequestForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const saveDraft = async (step: number) => {
+    try {
+      setIsValidating(true);
+      const response = await fetch("/api/visa-application/save-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          generalInfo: {
+            email: formData.email,
+            phone: formData.phone,
+            travelPurpose: formData.travelPurpose,
+            arrivalDate: formData.arrivalDate,
+            numberOfEntries: parseInt(formData.numberOfEntries === "double" ? "2" : "3"),
+            addressInMauritania: formData.addressInMauritania,
+            purposeDescription: formData.purposeDescription,
+          },
+          step: step,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Draft saved successfully:", result);
+        return result.applicationId; // Return applicationId for next steps
+      } else {
+        console.error("Failed to save draft");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error saving draft:", error);
+      return null;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const savePassportDraft = async (step: number, applicationId: string) => {
+    setIsValidating(true);
+    try {
+      const response = await fetch("/api/visa-application/save-passport-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          passportInfo: {
+            documentNumber: formData.documentNumber,
+            documentType: formData.documentType,
+            issueDate: formData.issueDate,
+            expiryDate: formData.expiryDate,
+            placeOfIssue: formData.placeOfIssue,
+          },
+          applicationId: applicationId,
+          step: step,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Passport draft saved successfully:", result);
+        return true;
+      } else {
+        console.error("Failed to save passport draft");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error saving passport draft:", error);
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const saveTravelerDraft = async (step: number, applicationId: string) => {
+    setIsValidating(true);
+    try {
+      const response = await fetch("/api/visa-application/save-traveler-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          travelerInfo: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            birthDate: formData.birthDate,
+            birthPlace: formData.birthPlace,
+            nationality: formData.nationality,
+            gender: formData.gender,
+            maritalStatus: formData.maritalStatus,
+            occupation: formData.occupation,
+          },
+          applicationId: applicationId,
+          step: step,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Traveler draft saved successfully:", result);
+        return true;
+      } else {
+        console.error("Failed to save traveler draft");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error saving traveler draft:", error);
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (validateStep(currentStep)) {
+      // Mark current step as completed
+      const newCompletedSteps = new Set([...completedSteps, currentStep]);
+      setCompletedSteps(newCompletedSteps);
+      
+      // Save completed steps to localStorage
+      localStorage.setItem('visa-completed-steps', JSON.stringify([...newCompletedSteps]));
+      
+      // Save draft for step 1
+      if (currentStep === 1) {
+        const applicationId = await saveDraft(1);
+        if (applicationId) {
+          // Store applicationId for next steps
+          localStorage.setItem('current-application-id', applicationId);
       setCurrentStep((prev) => Math.min(prev + 1, 6));
+        } else {
+          alert("Failed to save draft. Please try again.");
+        }
+      } else if (currentStep === 2) {
+        // Save passport info for step 2
+        const applicationId = localStorage.getItem('current-application-id');
+        if (applicationId) {
+          const saved = await savePassportDraft(2, applicationId);
+          if (saved) {
+            setCurrentStep((prev) => Math.min(prev + 1, 6));
+          } else {
+            alert("Failed to save passport draft. Please try again.");
+          }
+        } else {
+          alert("Application ID not found. Please restart the form.");
+        }
+      } else if (currentStep === 3) {
+        // Save traveler info for step 3
+        const applicationId = localStorage.getItem('current-application-id');
+        if (applicationId) {
+          const saved = await saveTravelerDraft(3, applicationId);
+          if (saved) {
+            setCurrentStep((prev) => Math.min(prev + 1, 6));
+          } else {
+            alert("Failed to save traveler draft. Please try again.");
+          }
+        } else {
+          alert("Application ID not found. Please restart the form.");
+        }
+      } else {
+        setCurrentStep((prev) => Math.min(prev + 1, 6));
+      }
     }
   };
 
@@ -214,6 +676,11 @@ const RequestForm = () => {
 
       if (response.ok) {
         const result = await response.json();
+        
+        // Clear saved form data and completed steps
+        localStorage.removeItem('visa-form-data');
+        localStorage.removeItem('visa-completed-steps');
+        
         alert("Visa application submitted successfully! Application Number: " + result.applicationNumber);
         router.push("/");
       } else {
@@ -266,42 +733,73 @@ const RequestForm = () => {
             whileInView="visible"
             transition={{ duration: 0.5, delay: 0.1 }}
             viewport={{ once: true }}
-            className="animate_top mb-15 flex flex-wrap justify-center rounded-[10px] border border-stroke bg-white shadow-solid-5 dark:border-strokedark dark:bg-blacksection dark:shadow-solid-6 md:flex-nowrap md:items-center xl:mb-21.5"
+            className="animate_top mb-15 rounded-[10px] border border-stroke bg-white shadow-solid-5 dark:border-strokedark dark:bg-blacksection dark:shadow-solid-6 xl:mb-21.5"
           >
-            {steps.map((step) => (
+            {/* Scrollable container for steps */}
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex min-w-max items-center">
+                {steps.map((step) => {
+                  const isCompleted = completedSteps.has(step.number);
+                  const isCurrent = currentStep === step.number;
+                  const isAccessible = currentStep >= step.number;
+                  
+                  return (
               <div
                 key={step.number}
-                onClick={() => setCurrentStep(step.number)}
+                      onClick={() => isAccessible && setCurrentStep(step.number)}
                 className={`relative flex w-full cursor-pointer items-center gap-4 border-b border-stroke px-4 py-2 last:border-0 dark:border-strokedark md:w-auto md:border-0 xl:px-8 xl:py-5 ${
-                  currentStep === step.number
+                        isCurrent
                     ? "active before:absolute before:bottom-0 before:left-0 before:h-1 before:w-full before:rounded-tl-[4px] before:rounded-tr-[4px] before:bg-primary"
                     : ""
-                } ${currentStep > step.number ? "opacity-70" : ""}`}
+                      } ${!isAccessible ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <div
                   className={`flex h-12.5 w-12.5 items-center justify-center rounded-[50%] border border-stroke dark:border-strokedark ${
-                    currentStep >= step.number
+                          isCompleted
+                            ? "bg-green-500 border-green-500"
+                            : isCurrent
                       ? "bg-primary border-primary"
+                            : isAccessible
+                            ? "bg-gray-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600"
                       : "dark:bg-blacksection"
                   }`}
                 >
+                        {isCompleted ? (
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        ) : (
                   <p
                     className={`text-metatitle3 font-medium ${
-                      currentStep >= step.number
+                              isCurrent || isAccessible
                         ? "text-white"
                         : "text-black dark:text-white"
                     }`}
                   >
                     {step.number.toString().padStart(2, "0")}
                   </p>
+                        )}
                 </div>
                 <div className="hidden md:block md:w-3/5 lg:w-auto">
-                  <button className="text-xs font-medium text-black dark:text-white xl:text-sm whitespace-nowrap">
+                        <button 
+                          className={`text-xs font-medium xl:text-sm whitespace-nowrap ${
+                            isCompleted
+                              ? "text-green-600 dark:text-green-400"
+                              : isCurrent
+                              ? "text-primary"
+                              : isAccessible
+                              ? "text-black dark:text-white"
+                              : "text-gray-400 dark:text-gray-500"
+                          }`}
+                        >
                     {step.title}
                   </button>
                 </div>
               </div>
-            ))}
+                  );
+                })}
+              </div>
+            </div>
           </motion.div>
 
           {/* Form Content */}
@@ -382,13 +880,41 @@ const RequestForm = () => {
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
                               {t('visa_application.general.email')} *
                             </label>
+                            <div className="relative">
                             <input
                               type="email"
                               name="email"
                               value={formData.email}
                               onChange={handleInputChange}
-                              className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
+                                className={`w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white ${
+                                  errors.email ? "border-red-500" : ""
+                                }`}
                               required
+                              />
+                              {formData.email && (
+                                <div className="absolute right-0 top-0 h-full flex items-center">
+                                  {emailValid ? (
+                                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <EmailValidator
+                              email={formData.email}
+                              onValidationChange={(isValid, error) => {
+                                setEmailValid(isValid);
+                                if (error && formData.email) {
+                                  setErrors(prev => ({ ...prev, email: error }));
+                                } else if (isValid) {
+                                  setErrors(prev => ({ ...prev, email: "" }));
+                                }
+                              }}
                             />
                             {errors.email && (
                               <p className="mt-1 text-sm text-red-500">{errors.email}</p>
@@ -398,18 +924,34 @@ const RequestForm = () => {
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
                               {t('visa_application.general.phone')} *
                             </label>
-                            <input
-                              type="tel"
-                              name="phone"
-                              value={formData.phone}
-                              onChange={handleInputChange}
-                              placeholder="+222 XX XX XX XX"
-                              className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
-                              required
-                            />
-                            {errors.phone && (
-                              <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
-                            )}
+                            <div className="flex gap-2">
+                              <div className="w-32">
+                                <CountryCodeSelector
+                                  selectedCountry={formData.countryCode}
+                                  onCountrySelect={(country) => {
+                                    setFormData(prev => ({ ...prev, countryCode: country }));
+                                    setErrors(prev => ({ ...prev, phone: "" }));
+                                  }}
+                                  error={errors.phone}
+                                      />
+                                    </div>
+                              <div className="flex-1">
+                                <input
+                                  type="tel"
+                                  name="phone"
+                                  value={formData.phone}
+                                  onChange={handleInputChange}
+                                  placeholder={formData.countryCode ? `${formData.countryCode.dialCode} XX XX XX XX` : "Phone number"}
+                                  className={`w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white ${
+                                    errors.phone ? "border-red-500" : ""
+                                  }`}
+                                  required
+                                />
+                              </div>
+                            </div>
+                                {errors.phone && (
+                                  <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
+                                )}
                           </div>
                         </div>
 
@@ -487,24 +1029,46 @@ const RequestForm = () => {
                         <div className="mb-11.5 flex">
                           <div className="w-full">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              {t('visa_application.general.purpose_description')}
+                              {t('visa_application.general.purpose_description')} *
                             </label>
+                            <div className="relative">
                             <textarea
                               name="purposeDescription"
                               value={formData.purposeDescription}
                               onChange={handleInputChange}
                               placeholder="Please provide additional details about your travel purpose..."
                               rows={4}
-                              className="w-full border-b border-stroke bg-transparent focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
+                                className={`w-full border-b border-stroke bg-transparent focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white ${
+                                  errors.purposeDescription ? "border-red-500" : ""
+                                }`}
+                                required
                             ></textarea>
+                              <div className="absolute bottom-2 right-2 text-xs text-gray-500 dark:text-gray-400">
+                                {formData.purposeDescription.length}/3000
+                              </div>
+                            </div>
+                            {errors.purposeDescription && (
+                              <p className="mt-1 text-sm text-red-500">{errors.purposeDescription}</p>
+                            )}
                           </div>
                         </div>
 
                         <div className="flex flex-wrap gap-4 xl:justify-end">
                           <button
                             type="submit"
-                            className="inline-flex items-center gap-2.5 rounded-full bg-black px-6 py-3 font-medium text-white duration-300 ease-in-out hover:bg-blackho dark:bg-btndark"
+                            disabled={isValidating}
+                            className="inline-flex items-center gap-2.5 rounded-full bg-black px-6 py-3 font-medium text-white duration-300 ease-in-out hover:bg-blackho dark:bg-btndark disabled:opacity-50 disabled:cursor-not-allowed"
                           >
+                            {isValidating ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
                             Next Step
                             <svg
                               className="fill-white"
@@ -519,6 +1083,8 @@ const RequestForm = () => {
                                 fill=""
                               />
                             </svg>
+                              </>
+                            )}
                           </button>
                         </div>
                       </form>
@@ -564,7 +1130,7 @@ const RequestForm = () => {
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Passport Number *
+                              {t('visa_application.passport.document_number')} *
                             </label>
                             <input
                               type="text"
@@ -572,17 +1138,21 @@ const RequestForm = () => {
                               value={formData.documentNumber}
                               onChange={handleInputChange}
                               placeholder="e.g., P1234567"
+                              maxLength={10}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                               required
                             />
                             {errors.documentNumber && (
                               <p className="mt-1 text-sm text-red-500">{errors.documentNumber}</p>
                             )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {formData.documentNumber.length}/10 {t('validation.passport_number_length')}
+                            </p>
                           </div>
 
                           <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Passport Type *
+                              {t('visa_application.passport.document_type')} *
                             </label>
                             <select
                               name="documentType"
@@ -590,9 +1160,9 @@ const RequestForm = () => {
                               onChange={handleInputChange}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                             >
-                              <option value="standard">Standard Passport</option>
-                              <option value="service">Service Passport</option>
-                              <option value="diplomatic">Diplomatic Passport</option>
+                              <option value="standard">{t('visa_application.passport.standard_passport')}</option>
+                              <option value="service">{t('visa_application.passport.service_passport')}</option>
+                              <option value="diplomatic">{t('visa_application.passport.diplomatic_passport')}</option>
                             </select>
                           </div>
                         </div>
@@ -742,61 +1312,55 @@ const RequestForm = () => {
 
                       <form onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
-                          <div className="w-full lg:w-1/3">
+                          <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Title *
-                            </label>
-                            <select
-                              name="title"
-                              value={formData.title}
-                              onChange={handleInputChange}
-                              className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
-                            >
-                              <option value="mr">Mr</option>
-                              <option value="mrs">Mrs</option>
-                              <option value="ms">Miss</option>
-                            </select>
-                          </div>
-
-                          <div className="w-full lg:w-1/3">
-                            <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              First Name *
+                              {t('visa_application.traveler.first_name')} *
                             </label>
                             <input
                               type="text"
                               name="firstName"
                               value={formData.firstName}
                               onChange={handleInputChange}
+                              placeholder="e.g., John"
+                              maxLength={50}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                               required
                             />
                             {errors.firstName && (
                               <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
                             )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {formData.firstName.length}/50 {t('validation.first_name_length')}
+                            </p>
                           </div>
 
-                          <div className="w-full lg:w-1/3">
+                          <div className="w-full lg:w-1/2">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Last Name *
+                              {t('visa_application.traveler.last_name')} *
                             </label>
                             <input
                               type="text"
                               name="lastName"
                               value={formData.lastName}
                               onChange={handleInputChange}
+                              placeholder="e.g., Smith"
+                              maxLength={50}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                               required
                             />
                             {errors.lastName && (
                               <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
                             )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {formData.lastName.length}/50 {t('validation.last_name_length')}
+                            </p>
                           </div>
                         </div>
 
                         <div className="mb-7.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
                           <div className="w-full lg:w-1/3">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Date of Birth *
+                              {t('visa_application.traveler.birth_date')} *
                             </label>
                             <input
                               type="date"
@@ -813,7 +1377,7 @@ const RequestForm = () => {
 
                           <div className="w-full lg:w-1/3">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Place of Birth *
+                              {t('visa_application.traveler.birth_place')} *
                             </label>
                             <input
                               type="text"
@@ -821,17 +1385,21 @@ const RequestForm = () => {
                               value={formData.birthPlace}
                               onChange={handleInputChange}
                               placeholder="e.g., Paris, France"
+                              maxLength={50}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                               required
                             />
                             {errors.birthPlace && (
                               <p className="mt-1 text-sm text-red-500">{errors.birthPlace}</p>
                             )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {formData.birthPlace.length}/50 {t('validation.birth_place_length')}
+                            </p>
                           </div>
 
                           <div className="w-full lg:w-1/3">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Nationality *
+                              {t('visa_application.traveler.nationality')} *
                             </label>
                             <input
                               type="text"
@@ -849,9 +1417,9 @@ const RequestForm = () => {
                         </div>
 
                         <div className="mb-12.5 flex flex-col gap-7.5 lg:flex-row lg:justify-between lg:gap-14">
-                          <div className="w-full lg:w-1/2">
+                          <div className="w-full lg:w-1/3">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Gender *
+                              {t('visa_application.traveler.gender')} *
                             </label>
                             <select
                               name="gender"
@@ -859,14 +1427,39 @@ const RequestForm = () => {
                               onChange={handleInputChange}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                             >
-                              <option value="male">Male</option>
-                              <option value="female">Female</option>
+                              <option value="">{t('visa_application.traveler.gender')}</option>
+                              <option value="male">{t('visa_application.traveler.male')}</option>
+                              <option value="female">{t('visa_application.traveler.female')}</option>
                             </select>
+                            {errors.gender && (
+                              <p className="mt-1 text-sm text-red-500">{errors.gender}</p>
+                            )}
                           </div>
 
-                          <div className="w-full lg:w-1/2">
+                          <div className="w-full lg:w-1/3">
                             <label className="block mb-2 text-sm font-medium text-black dark:text-white">
-                              Occupation *
+                              {t('visa_application.traveler.marital_status')} *
+                            </label>
+                            <select
+                              name="maritalStatus"
+                              value={formData.maritalStatus}
+                              onChange={handleInputChange}
+                              className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
+                            >
+                              <option value="">{t('visa_application.traveler.marital_status')}</option>
+                              <option value="single">{t('visa_application.traveler.single')}</option>
+                              <option value="married">{t('visa_application.traveler.married')}</option>
+                              <option value="divorced">{t('visa_application.traveler.divorced')}</option>
+                              <option value="widowed">{t('visa_application.traveler.widowed')}</option>
+                            </select>
+                            {errors.maritalStatus && (
+                              <p className="mt-1 text-sm text-red-500">{errors.maritalStatus}</p>
+                            )}
+                          </div>
+
+                          <div className="w-full lg:w-1/3">
+                            <label className="block mb-2 text-sm font-medium text-black dark:text-white">
+                              {t('visa_application.traveler.occupation')} *
                             </label>
                             <input
                               type="text"
@@ -874,12 +1467,16 @@ const RequestForm = () => {
                               value={formData.occupation}
                               onChange={handleInputChange}
                               placeholder="e.g., Engineer"
+                              maxLength={100}
                               className="w-full border-b border-stroke bg-transparent pb-3.5 focus:border-waterloo focus:placeholder:text-black focus-visible:outline-none dark:border-strokedark dark:focus:border-manatee dark:focus:placeholder:text-white"
                               required
                             />
                             {errors.occupation && (
                               <p className="mt-1 text-sm text-red-500">{errors.occupation}</p>
                             )}
+                            <p className="mt-1 text-xs text-gray-500">
+                              {formData.occupation.length}/100 {t('validation.occupation_length')}
+                            </p>
                           </div>
                         </div>
 

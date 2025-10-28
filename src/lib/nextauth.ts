@@ -1,12 +1,18 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "./prisma";
+import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcrypt";
 
+// MongoDB connection helper
+const getMongoClient = async () => {
+  const client = new MongoClient(process.env.DATABASE_URL!);
+  await client.connect();
+  return client;
+};
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // No adapter - use JWT strategy only
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -30,9 +36,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email et mot de passe requis");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        const client = await getMongoClient();
+        const db = client.db("e-visa");
+        const users = db.collection("User");
+
+        const user = await users.findOne({ email: credentials.email });
+        await client.close();
 
         if (!user || !user.password) {
           throw new Error("Utilisateur non trouvé");
@@ -48,7 +57,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id,
+          id: user._id.toString(),
           email: user.email,
           name: user.name,
           image: user.image,
@@ -58,6 +67,9 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
+  jwt: {
     maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   pages: {
@@ -84,12 +96,22 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async signIn({ user, account, profile }) {
-      // Update last login
+      // Update last login using MongoDB directly
       if (user.id) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
-        });
+        try {
+          const client = await getMongoClient();
+          const db = client.db("e-visa");
+          const users = db.collection("User");
+          
+          await users.updateOne(
+            { _id: new ObjectId(user.id) },
+            { $set: { lastLogin: new Date() } }
+          );
+          
+          await client.close();
+        } catch (error) {
+          console.error("Error updating last login:", error);
+        }
       }
       return true;
     },

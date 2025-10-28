@@ -1,6 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "@/lib/prisma";
+import { MongoClient, ObjectId } from "mongodb";
 import { requireAuth } from "@/lib/auth-helpers";
+
+const getMongoClient = async () => {
+  const client = new MongoClient(process.env.DATABASE_URL!);
+  await client.connect();
+  return client;
+};
 
 // Generate a unique application number
 function generateApplicationNumber(): string {
@@ -34,67 +40,94 @@ export default async function handler(
     // Generate application number
     const applicationNumber = generateApplicationNumber();
 
-    // Create visa application with related data
-    const application = await prisma.visaApplication.create({
-      data: {
-        userId: user.id,
-        applicationNumber,
-        status: "pending",
-        visaTypeId: visaTypeId || null,
-        generalInfo: {
-          create: {
-            email: generalInfo.email,
-            phone: generalInfo.phone,
-            travelPurpose: generalInfo.travelPurpose,
-            arrivalDate: new Date(generalInfo.arrivalDate),
-            numberOfEntries: generalInfo.numberOfEntries,
-            addressInMauritania: generalInfo.addressInMauritania,
-            purposeDescription: generalInfo.purposeDescription,
-          },
-        },
-        passportInfo: {
-          create: {
-            documentNumber: passportInfo.documentNumber,
-            documentType: passportInfo.documentType,
-            issueDate: new Date(passportInfo.issueDate),
-            expiryDate: new Date(passportInfo.expiryDate),
-            placeOfIssue: passportInfo.placeOfIssue,
-          },
-        },
-        travelerInfo: {
-          create: {
-            title: travelerInfo.title,
-            firstName: travelerInfo.firstName,
-            lastName: travelerInfo.lastName,
-            birthDate: new Date(travelerInfo.birthDate),
-            birthPlace: travelerInfo.birthPlace,
-            nationality: travelerInfo.nationality,
-            gender: travelerInfo.gender,
-            occupation: travelerInfo.occupation,
-          },
-        },
-      },
-      include: {
-        generalInfo: true,
-        passportInfo: true,
-        travelerInfo: true,
-      },
-    });
+    // Connect to MongoDB
+    const client = await getMongoClient();
+    const db = client.db("e-visa");
+    
+    const applicationsCollection = db.collection("VisaApplication");
+    const generalInfoCollection = db.collection("GeneralInfo");
+    const passportInfoCollection = db.collection("PassportInfo");
+    const travelerInfoCollection = db.collection("TravelerInfo");
+    const statusHistoryCollection = db.collection("StatusHistory");
+
+    // Create visa application
+    const applicationData = {
+      userId: new ObjectId(user.id),
+      applicationNumber,
+      status: "pending",
+      visaTypeId: visaTypeId ? new ObjectId(visaTypeId) : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const applicationResult = await applicationsCollection.insertOne(applicationData);
+    const applicationId = applicationResult.insertedId;
+
+    // Create general info
+    const generalInfoData = {
+      applicationId: new ObjectId(applicationId),
+      email: generalInfo.email,
+      phone: generalInfo.phone,
+      travelPurpose: generalInfo.travelPurpose,
+      arrivalDate: new Date(generalInfo.arrivalDate),
+      numberOfEntries: generalInfo.numberOfEntries,
+      addressInMauritania: generalInfo.addressInMauritania,
+      purposeDescription: generalInfo.purposeDescription,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await generalInfoCollection.insertOne(generalInfoData);
+
+    // Create passport info
+    const passportInfoData = {
+      applicationId: new ObjectId(applicationId),
+      documentNumber: passportInfo.documentNumber,
+      documentType: passportInfo.documentType,
+      issueDate: new Date(passportInfo.issueDate),
+      expiryDate: new Date(passportInfo.expiryDate),
+      placeOfIssue: passportInfo.placeOfIssue,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await passportInfoCollection.insertOne(passportInfoData);
+
+    // Create traveler info
+    const travelerInfoData = {
+      applicationId: new ObjectId(applicationId),
+      title: travelerInfo.title,
+      firstName: travelerInfo.firstName,
+      lastName: travelerInfo.lastName,
+      birthDate: new Date(travelerInfo.birthDate),
+      birthPlace: travelerInfo.birthPlace,
+      nationality: travelerInfo.nationality,
+      gender: travelerInfo.gender,
+      maritalStatus: travelerInfo.maritalStatus,
+      occupation: travelerInfo.occupation,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await travelerInfoCollection.insertOne(travelerInfoData);
 
     // Create status history entry
-    await prisma.statusHistory.create({
-      data: {
-        applicationId: application.id,
-        previousStatus: null,
-        newStatus: "pending",
-        comment: "Application submitted",
-      },
-    });
+    const statusHistoryData = {
+      applicationId: new ObjectId(applicationId),
+      previousStatus: null,
+      newStatus: "pending",
+      comment: "Application submitted",
+      createdAt: new Date(),
+    };
+
+    await statusHistoryCollection.insertOne(statusHistoryData);
+
+    await client.close();
 
     return res.status(201).json({
       message: "Visa application created successfully",
-      applicationNumber: application.applicationNumber,
-      applicationId: application.id,
+      applicationNumber: applicationNumber,
+      applicationId: applicationId.toString(),
     });
   } catch (error) {
     console.error("Error creating visa application:", error);
